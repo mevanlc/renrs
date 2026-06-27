@@ -3,6 +3,21 @@ name = "ren"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+ren-ext = []
+ren-stem = []
+
+[[bin]]
+name = "ren-ext"
+path = "src/bin/ren-ext.rs"
+required-features = ["ren-ext"]
+
+[[bin]]
+name = "ren-stem"
+path = "src/bin/ren-stem.rs"
+required-features = ["ren-stem"]
+
 [dependencies]
 clap = { version = "4.5.54", features = ["derive"] }
 faccess = "0.2.4"
