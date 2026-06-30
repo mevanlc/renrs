@@ -1,6 +1,6 @@
 use std::ffi::{OsStr, OsString};
 use std::fs;
-use std::io;
+use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 
 use clap::{Args as ClapArgs, Parser, ValueEnum};
@@ -179,15 +179,7 @@ where
     }
 
     let target = make_target(&source)?;
-    ensure_missing(&target)?;
-
-    fs::rename(&source, &target).map_err(|err| {
-        format!(
-            "cannot rename '{}' to '{}': {err}",
-            source.display(),
-            target.display()
-        )
-    })
+    rename_without_overwrite(&source, &target)
 }
 
 fn rename_target(source: &Path, name: &OsString) -> Result<PathBuf, String> {
@@ -258,15 +250,21 @@ fn is_leaf_name(name: &Path) -> bool {
     matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none()
 }
 
-fn ensure_missing(path: &Path) -> Result<(), String> {
-    match fs::symlink_metadata(path) {
-        Ok(_) => Err(format!(
-            "refusing to rename: target '{}' already exists",
-            path.display()
-        )),
-        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(err) => Err(format!("cannot check target '{}': {err}", path.display())),
-    }
+fn rename_without_overwrite(source: &Path, target: &Path) -> Result<(), String> {
+    renamore::rename_exclusive(source, target).map_err(|err| {
+        if err.kind() == ErrorKind::AlreadyExists {
+            format!(
+                "refusing to rename: target '{}' already exists",
+                target.display()
+            )
+        } else {
+            format!(
+                "cannot rename '{}' to '{}': {err}",
+                source.display(),
+                target.display()
+            )
+        }
+    })
 }
 
 #[cfg(any(unix, target_os = "redox"))]
