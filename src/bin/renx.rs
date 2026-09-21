@@ -1,13 +1,13 @@
 use std::process::ExitCode;
 
 use clap::Parser;
-use ren::StemArgs;
+use ren::RenxArgs;
 
 fn main() -> ExitCode {
-    match ren::run_stem(StemArgs::parse()) {
+    match ren::run_renx(RenxArgs::parse()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("ren-stem: {err}");
+            eprintln!("renx: {err}");
             ExitCode::FAILURE
         }
     }
