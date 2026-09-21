@@ -22,6 +22,19 @@ pub struct RenameArgs {
 }
 
 #[derive(Debug, Parser)]
+#[command(about = "Undo a rename without moving the filesystem entry")]
+pub struct UnrenArgs {
+    #[command(flatten)]
+    filters: TypeFilterArgs,
+
+    /// Filesystem entry to restore.
+    path: PathBuf,
+
+    /// Leaf name of the entry to rename back to PATH.
+    name: OsString,
+}
+
+#[derive(Debug, Parser)]
 #[command(about = "Rename a filesystem entry without moving it")]
 #[command(group(
     clap::ArgGroup::new("search-operation")
@@ -373,6 +386,19 @@ impl FileTypes {
 pub fn run(args: RenameArgs) -> Result<(), String> {
     rename_entry(args.path, args.filters.filetype, |source| {
         rename_target(source, &args.name).map(RenameTarget::Changed)
+    })
+}
+
+pub fn run_unren(args: UnrenArgs) -> Result<(), String> {
+    let file_name = ensure_source_has_file_name(&args.path)?;
+    ensure_leaf_name(&args.path, &args.name, "name")?;
+
+    let parent = args.path.parent().unwrap_or_else(|| Path::new(""));
+    let source = parent.join(&args.name);
+    let target = parent.join(file_name);
+
+    rename_entry(source, args.filters.filetype, |_| {
+        Ok(RenameTarget::Changed(target))
     })
 }
 
@@ -1337,8 +1363,167 @@ mod tests {
         }
     }
 
+    #[test]
+    fn unren_renames_file_within_same_parent() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let old = tempdir.path().join("old");
+        let new = tempdir.path().join("new");
+        fs::write(&new, "contents").unwrap();
+
+        run_unren(unren_args(&old, "new", None)).unwrap();
+
+        assert!(!new.exists());
+        assert_eq!(fs::read_to_string(old).unwrap(), "contents");
+    }
+
+    #[test]
+    fn unren_renames_file_in_subdirectory() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let subdir = tempdir.path().join("sub");
+        fs::create_dir(&subdir).unwrap();
+        let old = subdir.join("old");
+        let new = subdir.join("new");
+        fs::write(&new, "contents").unwrap();
+
+        run_unren(unren_args(&old, "new", None)).unwrap();
+
+        assert!(!new.exists());
+        assert_eq!(fs::read_to_string(old).unwrap(), "contents");
+    }
+
+    #[test]
+    fn unren_undoes_ren() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let old = tempdir.path().join("old");
+        let new = tempdir.path().join("new");
+        fs::write(&old, "contents").unwrap();
+
+        run(rename_args(&old, "new", None)).unwrap();
+        assert!(!old.exists());
+        assert_eq!(fs::read_to_string(&new).unwrap(), "contents");
+
+        run_unren(unren_args(&old, "new", None)).unwrap();
+        assert!(!new.exists());
+        assert_eq!(fs::read_to_string(&old).unwrap(), "contents");
+    }
+
+    #[test]
+    fn unren_undoes_ren_in_subdirectory() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let subdir = tempdir.path().join("sub");
+        fs::create_dir(&subdir).unwrap();
+        let old = subdir.join("old");
+        let new = subdir.join("new");
+        fs::write(&old, "contents").unwrap();
+
+        run(rename_args(&old, "new", None)).unwrap();
+        assert!(!old.exists());
+        assert_eq!(fs::read_to_string(&new).unwrap(), "contents");
+
+        run_unren(unren_args(&old, "new", None)).unwrap();
+        assert!(!new.exists());
+        assert_eq!(fs::read_to_string(&old).unwrap(), "contents");
+    }
+
+    #[test]
+    fn unren_refuses_to_overwrite_existing_entry() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let old = tempdir.path().join("old");
+        let new = tempdir.path().join("new");
+        fs::write(&old, "old").unwrap();
+        fs::write(&new, "new").unwrap();
+
+        let err = run_unren(unren_args(&old, "new", None)).unwrap_err();
+
+        assert!(err.contains("already exists"));
+        assert_eq!(fs::read_to_string(old).unwrap(), "old");
+        assert_eq!(fs::read_to_string(new).unwrap(), "new");
+    }
+
+    #[test]
+    fn unren_fails_when_source_does_not_exist() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let old = tempdir.path().join("old");
+
+        let err = run_unren(unren_args(&old, "new", None)).unwrap_err();
+
+        assert!(err.contains("cannot read"));
+    }
+
+    #[test]
+    fn unren_refuses_name_with_path_components() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let old = tempdir.path().join("old");
+
+        let err = run_unren(unren_args(&old, "subdir/new", None)).unwrap_err();
+
+        assert!(err.contains("name must not contain path components"));
+    }
+
+    #[test]
+    fn unren_refuses_path_without_file_name() {
+        let err = run_unren(unren_args(Path::new("/"), "new", None)).unwrap_err();
+
+        assert!(err.contains("path has no file name"));
+    }
+
+    #[test]
+    fn unren_accepts_matching_type_filter() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let old = tempdir.path().join("old");
+        let new = tempdir.path().join("new");
+        fs::write(&new, "contents").unwrap();
+
+        run_unren(unren_args(&old, "new", Some(vec![FileType::File]))).unwrap();
+
+        assert!(old.exists());
+        assert!(!new.exists());
+    }
+
+    #[test]
+    fn unren_refuses_non_matching_type_filter() {
+        let tempdir = tempfile::tempdir().unwrap();
+        let old = tempdir.path().join("old");
+        let new = tempdir.path().join("new");
+        fs::write(&new, "contents").unwrap();
+
+        let err = run_unren(unren_args(&old, "new", Some(vec![FileType::Directory]))).unwrap_err();
+
+        assert!(err.contains("type does not match"));
+        assert!(new.exists());
+        assert!(!old.exists());
+    }
+
+    #[test]
+    fn unren_parses_type_filter_multiple_times() {
+        let args =
+            UnrenArgs::try_parse_from(["unren", "-tf", "--type", "dir", "old", "new"]).unwrap();
+
+        assert_eq!(
+            args.filters.filetype,
+            Some(vec![FileType::File, FileType::Directory])
+        );
+        assert_eq!(args.path, PathBuf::from("old"));
+        assert_eq!(args.name, OsString::from("new"));
+    }
+
+    #[test]
+    fn unren_rejects_compact_multiple_type_specs() {
+        let err = UnrenArgs::try_parse_from(["unren", "-tfd", "old", "new"]).unwrap_err();
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::InvalidValue);
+    }
+
     fn rename_args(path: &Path, name: &str, filetype: Option<Vec<FileType>>) -> RenameArgs {
         RenameArgs {
+            filters: TypeFilterArgs { filetype },
+            path: path.to_path_buf(),
+            name: OsString::from(name),
+        }
+    }
+
+    fn unren_args(path: &Path, name: &str, filetype: Option<Vec<FileType>>) -> UnrenArgs {
+        UnrenArgs {
             filters: TypeFilterArgs { filetype },
             path: path.to_path_buf(),
             name: OsString::from(name),
