@@ -27,3 +27,8 @@ target
 # Added by cargo
 
 /target
+
+# Release artifacts and helper caches
+/dist
+__pycache__/
+.ruff_cache/

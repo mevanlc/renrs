@@ -8,8 +8,18 @@ use clap::{Args as ClapArgs, Parser, ValueEnum};
 use faccess::PathExt;
 use regex::bytes::RegexBuilder;
 
+// Compile the vendored fork into the package so crates.io installs use the same
+// implementation as local builds. Its additional library APIs are unused here.
+#[allow(dead_code)]
+#[path = "../vendor/renamore/src/lib.rs"]
+mod renamore;
+
 #[derive(Debug, Parser)]
-#[command(about = "Rename a filesystem entry without moving it")]
+#[command(
+    name = "ren",
+    version,
+    about = "Rename a filesystem entry without moving it"
+)]
 pub struct RenameArgs {
     #[command(flatten)]
     filters: TypeFilterArgs,
@@ -22,7 +32,11 @@ pub struct RenameArgs {
 }
 
 #[derive(Debug, Parser)]
-#[command(about = "Undo a rename without moving the filesystem entry")]
+#[command(
+    name = "unren",
+    version,
+    about = "Undo a rename without moving the filesystem entry"
+)]
 pub struct UnrenArgs {
     #[command(flatten)]
     filters: TypeFilterArgs,
@@ -35,7 +49,11 @@ pub struct UnrenArgs {
 }
 
 #[derive(Debug, Parser)]
-#[command(about = "Rename a filesystem entry without moving it")]
+#[command(
+    name = "renx",
+    version,
+    about = "Rename a filesystem entry without moving it"
+)]
 #[command(group(
     clap::ArgGroup::new("search-operation")
         .args(["sr_regex", "sr_fixed"])

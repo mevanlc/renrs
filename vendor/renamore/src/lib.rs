@@ -1,5 +1,8 @@
 //! More ways to rename files.
 //!
+//! The examples document the standalone renamore crate. This internal copy is
+//! private to renrs; its APIs are not exported, so the examples are not doctests.
+//!
 //! ## Overview
 //!
 //! The Rust standard library offers [`std::fs::rename`] for renaming files.
@@ -19,7 +22,7 @@
 //! is not supported by all combinations of operating system and file system.
 //! `rename_exclusive` will fail if it can't be done atomically.
 //!
-//! ```no_run
+//! ```ignore
 //! use std::io::Result;
 //!
 //! fn main() -> Result<()> {
@@ -31,7 +34,7 @@
 //! perform the operation atomically, and use a non-atomic fallback if that's
 //! not supported. The return value will indicate what happened.
 //!
-//! ```no_run
+//! ```ignore
 //! use std::io::Result;
 //!
 //! fn main() -> Result<()> {
@@ -49,11 +52,7 @@
 //!
 //! ## Platform-specific behaviour
 //!
-//! On Linux, the `renameat2` syscall is used through `libc`. The
-//! `always-fallback` feature can force Linux to report [`ErrorKind::Unsupported`]
-//! so [`rename_exclusive_fallback`] uses its non-atomic fallback.
-//!
-//!  - `always-fallback`. Assume that `renameat2` doesn't exist on Linux.
+//! On Linux and Android, the `renameat2` syscall is used through `libc`.
 
 use std::io::{Error, ErrorKind, Result};
 use std::path::Path;
@@ -70,7 +69,7 @@ use std::path::Path;
 ///
 /// # Platform-specific behaviour
 ///
-/// On Linux, this calls `renameat2` with `RENAME_NOREPLACE`. On Darwin (macOS,
+/// On Linux and Android, this calls `renameat2` with `RENAME_NOREPLACE`. On Darwin (macOS,
 /// iOS, watchOS, tvOS), this calls `renamex_np` with `RENAME_EXCL`. On Windows,
 /// this calls `MoveFileExW` with no flags. On all other platforms, this returns
 /// [`ErrorKind::Unsupported`] unconditionally.
@@ -109,7 +108,7 @@ pub fn rename_exclusive<F: AsRef<Path>, T: AsRef<Path>>(from: F, to: T) -> Resul
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// # use std::io::Result;
 /// # fn main() -> Result<()> {
 /// if !renamore::rename_exclusive_is_atomic(".")? {
@@ -134,7 +133,7 @@ pub fn rename_exclusive_is_atomic<P: AsRef<Path>>(path: P) -> Result<bool> {
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// # fn main() -> std::io::Result<()> {
 /// if renamore::rename_exclusive_fallback("old.txt", "new.txt")? {
 ///     // `new.txt` was definitely not overwritten.
@@ -169,9 +168,9 @@ fn rename_exclusive_non_atomic(from: &Path, to: &Path) -> Result<()> {
     std::fs::rename(from, to)
 }
 
-#[cfg(all(target_os = "linux", not(feature = "always-fallback")))]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 mod linux;
-#[cfg(all(target_os = "linux", not(feature = "always-fallback")))]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 use linux as sys;
 
 #[cfg(target_vendor = "apple")]
@@ -185,7 +184,8 @@ mod windows;
 use windows as sys;
 
 #[cfg(not(any(
-    all(target_os = "linux", not(feature = "always-fallback")),
+    target_os = "linux",
+    target_os = "android",
     target_vendor = "apple",
     target_os = "windows",
 )))]

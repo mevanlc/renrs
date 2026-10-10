@@ -1,13 +1,36 @@
 [package]
-name = "ren"
-version = "0.1.0"
+name = "renrs"
+version = "0.0.0"
 edition = "2024"
+description = "Rename filesystem entries in place without overwriting existing destinations"
+license = "MIT"
+repository = "https://github.com/mevanlc/renrs"
+readme = "README.md"
+keywords = ["rename", "filesystem", "cli"]
+categories = ["command-line-utilities", "filesystem"]
+autobins = false
+include = ["/src/**", "/tests/**", "/vendor/renamore/**", "/Cargo.toml", "/Cargo.lock", "/README.md", "/LICENSE"]
+
+[lib]
+name = "ren"
+
+[[bin]]
+name = "ren"
+path = "src/main.rs"
+
+[[bin]]
+name = "renx"
+path = "src/bin/renx.rs"
+
+[[bin]]
+name = "unren"
+path = "src/bin/unren.rs"
 
 [dependencies]
 clap = { version = "4.5.54", features = ["derive"] }
 faccess = "0.2.4"
 regex = "1.12.2"
-renamore = { path = "vendor/renamore" }
+libc = "0.2.177"
 
 [dev-dependencies]
 tempfile = "3.20.0"

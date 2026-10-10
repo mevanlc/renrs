@@ -2,6 +2,13 @@
 
 More ways to rename files.
 
+This copy of the [maintained fork](https://github.com/mevanlc/renamore) is
+compiled into renrs as an internal module, so published installs retain its
+platform fixes. `Cargo.toml.upstream` records the original package metadata;
+this directory is not a separate Cargo package. The root package supplies
+`libc` and runs these tests. Linux and Android share the syscall implementation;
+this internal copy does not expose the upstream compatibility features.
+
 ## Overview
 
 The Rust standard library offers [`std::fs::rename`] for renaming files.
@@ -56,11 +63,9 @@ fn main() -> Result<()> {
 
 ## Platform-specific behaviour
 
-On Linux, the `renameat2` syscall is used through `libc`. The
-`always-fallback` feature can force Linux to report `Unsupported` so
-`rename_exclusive_fallback` uses its non-atomic fallback.
-
- - `always-fallback`. Assume that `renameat2` doesn't exist on Linux.
+On Linux and Android, the `renameat2` syscall is used through `libc`. Renrs
+uses `rename_exclusive` and fails if the exclusive operation is unsupported;
+it does not use the non-atomic fallback APIs described above.
 
 ## License
 

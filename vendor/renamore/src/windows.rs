@@ -1,11 +1,12 @@
-use std::ffi::{c_int, c_ulong, OsStr};
+use std::ffi::{OsStr, c_int, c_ulong};
 use std::io::Result;
 use std::os::windows::prelude::OsStrExt;
 use std::path::Path;
 
 // Linking will fail on Windows versions prior to XP.
 
-extern "C" {
+#[link(name = "kernel32")]
+unsafe extern "system" {
     fn MoveFileExW(
         lpExistingFileName: *const u16,
         lpNewFileName: *const u16,

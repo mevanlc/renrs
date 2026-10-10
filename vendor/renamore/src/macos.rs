@@ -8,10 +8,10 @@ fn unsupported_or(error: Error) -> Error {
         return Error::from(ErrorKind::Unsupported);
     }
 
-    if let Some(code) = error.raw_os_error() {
-        if code == libc::ENOTSUP || code == libc::EOPNOTSUPP {
-            return Error::from(ErrorKind::Unsupported);
-        }
+    if let Some(code) = error.raw_os_error()
+        && (code == libc::ENOTSUP || code == libc::EOPNOTSUPP)
+    {
+        return Error::from(ErrorKind::Unsupported);
     }
 
     error

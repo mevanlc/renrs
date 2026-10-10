@@ -22,6 +22,8 @@ unsafe fn renameat2(
     }
 }
 
+// libc exposes RENAME_NOREPLACE as c_int on Android and c_uint on Linux.
+#[allow(clippy::unnecessary_cast)]
 pub fn rename_exclusive(from: &Path, to: &Path) -> Result<()> {
     let from_str = CString::new(from.as_os_str().as_bytes())?;
     let to_str = CString::new(to.as_os_str().as_bytes())?;
@@ -31,7 +33,7 @@ pub fn rename_exclusive(from: &Path, to: &Path) -> Result<()> {
             from_str.as_ptr(),
             libc::AT_FDCWD,
             to_str.as_ptr(),
-            libc::RENAME_NOREPLACE,
+            libc::RENAME_NOREPLACE as libc::c_uint,
         )
     };
 
@@ -108,6 +110,8 @@ fn get_kernel_version() -> Result<Version> {
     Ok(Version::new(major, minor, patch))
 }
 
+// statfs.f_type has different signedness across Linux/Android libc variants.
+#[allow(clippy::unnecessary_cast)]
 fn get_filesystem_type(path: &Path) -> Result<u64> {
     let path_str = CString::new(path.as_os_str().as_bytes())?;
     let mut buf = std::mem::MaybeUninit::<libc::statfs>::uninit();
@@ -140,8 +144,8 @@ const FS_MINIX: [u64; 5] = [
 ];
 const FS_REISERFS: u64 = libc::REISERFS_SUPER_MAGIC as u64;
 const FS_JFS: u64 = 0x3153464a; // JFS_SUPER_MAGIC
-                                // vfat was discovered experimentally. It doesn't appear in the man page or the
-                                // magic.h header.
+// vfat was discovered experimentally. It doesn't appear in the man page or the
+// magic.h header.
 const FS_VFAT: u64 = 0x7c7c6673;
 const FS_BPF: u64 = libc::BPF_FS_MAGIC as u64;
 
@@ -157,22 +161,18 @@ pub fn rename_exclusive_is_atomic(path: &Path) -> Result<bool> {
     //  - Support for many other filesystems was added in Linux 4.9, including
     //    ext2, minix, reiserfs, jfs, vfat, and bpf.
 
-    if kernel >= Version::new(3, 15, 0) {
-        if fs == FS_EXT4 {
-            return Ok(true);
-        }
+    if kernel >= Version::new(3, 15, 0) && fs == FS_EXT4 {
+        return Ok(true);
     }
 
-    if kernel >= Version::new(3, 17, 0) {
-        if FS_BTRFS.contains(&fs) || [FS_TMPFS, FS_CIFS].contains(&fs) {
-            return Ok(true);
-        }
+    if kernel >= Version::new(3, 17, 0)
+        && (FS_BTRFS.contains(&fs) || [FS_TMPFS, FS_CIFS].contains(&fs))
+    {
+        return Ok(true);
     }
 
-    if kernel >= Version::new(4, 0, 0) {
-        if fs == FS_XFS {
-            return Ok(true);
-        }
+    if kernel >= Version::new(4, 0, 0) && fs == FS_XFS {
+        return Ok(true);
     }
 
     if kernel >= Version::new(4, 9, 0) {
