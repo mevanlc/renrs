@@ -8,6 +8,30 @@ parent directory. They refuse to overwrite an existing destination.
   `PATH`'s leaf name.
 - `renx` changes a name using an operation such as append, prepend, or replacement.
 
+## Why renrs?
+
+Renaming should change an entry's name without changing where it lives. `renrs`
+provides dedicated commands for renaming files, directories, and symlinks within
+their current directory. They never:
+
+- Move an entry to another directory.
+- Interpret the new name as a directory to move into.
+- Copy file contents, including as a fallback.
+- Overwrite an existing destination.
+
+For example, `ren report.txt archive` renames the file to `archive`. If `archive`
+already exists—even as a directory—the command fails.
+
+These commands use the [renamest](https://github.com/mevanlc/renamest) library for
+native, cross-platform atomic† no-overwrite renames. Unsupported operations fail
+rather than falling back to a separate existence check followed by an ordinary
+rename.
+
+† On Windows, renamest uses `MoveFileExW` without replacement or copy flags.
+Simple renames are [reported to be atomic on NTFS](https://stackoverflow.com/questions/167414/is-an-atomic-file-rename-with-overwrite-possible-on-windows),
+but [Microsoft's API documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw)
+does not explicitly guarantee atomicity.
+
 ## Install
 
 From a checkout:
