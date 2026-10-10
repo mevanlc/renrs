@@ -73,6 +73,5 @@ first-publication setup, trusted publishing, download verification, and recovery
 
 ## License
 
-[MIT](LICENSE). The vendored
-[renamore](https://github.com/mevanlc/renrs/blob/main/vendor/renamore/README.md)
-code retains its MIT or Apache-2.0 license.
+[MIT](LICENSE). Renaming uses [renamest](https://crates.io/crates/renamest),
+licensed under MIT or Apache-2.0. Release archives include its license notices.

@@ -68,9 +68,9 @@ class ProjectTest(unittest.TestCase):
         Path("rust-toolchain.toml").write_text('[toolchain]\nchannel = "1.98.1"\n')
         Path("README.md").write_text("A sample project\n")
         Path("LICENSE").write_text("MIT\n")
-        Path("vendor/renamore").mkdir(parents=True)
-        Path("vendor/renamore/LICENSE-MIT").write_text("Vendored MIT license\n")
-        Path("vendor/renamore/LICENSE-APACHE").write_text("Vendored Apache license\n")
+        Path("licenses").mkdir()
+        Path("licenses/renamest-MIT").write_text("Dependency MIT license\n")
+        Path("licenses/renamest-APACHE").write_text("Dependency Apache license\n")
         patcher = mock.patch.object(release, "source_commit", return_value="a" * 40)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -129,8 +129,8 @@ class ProjectTest(unittest.TestCase):
                         executable,
                         "README.md",
                         "LICENSE",
-                        "licenses/renamore-MIT",
-                        "licenses/renamore-APACHE",
+                        "licenses/renamest-MIT",
+                        "licenses/renamest-APACHE",
                     )
                 }
                 if "windows" in target:
@@ -168,8 +168,8 @@ class ProjectTest(unittest.TestCase):
                         "second" + suffix,
                         "README.md",
                         "LICENSE",
-                        "licenses/renamore-MIT",
-                        "licenses/renamore-APACHE",
+                        "licenses/renamest-MIT",
+                        "licenses/renamest-APACHE",
                     )
                 }
                 if suffix:

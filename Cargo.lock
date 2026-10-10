@@ -177,9 +177,9 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "libc"
-version = "0.2.186"
+version = "0.2.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
+checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 
 [[package]]
 name = "linux-raw-sys"
@@ -259,13 +259,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "renamest"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05e46b3fcb6f7fe401a44bd286f15b3e923ff9278122d819e5f166e85bcf9ad0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "renrs"
 version = "0.0.0"
 dependencies = [
  "clap",
  "faccess",
- "libc",
  "regex",
+ "renamest",
  "tempfile",
 ]
 

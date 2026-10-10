@@ -166,8 +166,8 @@ def package_binary(target, destination=Path("dist")):
         **{name: Path("target") / target / "release" / name for name in executables},
         "README.md": Path("README.md"),
         "LICENSE": Path("LICENSE"),
-        "licenses/renamore-MIT": Path("vendor/renamore/LICENSE-MIT"),
-        "licenses/renamore-APACHE": Path("vendor/renamore/LICENSE-APACHE"),
+        "licenses/renamest-MIT": Path("licenses/renamest-MIT"),
+        "licenses/renamest-APACHE": Path("licenses/renamest-APACHE"),
     }
     require(
         all(path.is_file() for path in files.values()),

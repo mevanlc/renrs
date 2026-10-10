@@ -8,12 +8,6 @@ use clap::{Args as ClapArgs, Parser, ValueEnum};
 use faccess::PathExt;
 use regex::bytes::RegexBuilder;
 
-// Compile the vendored fork into the package so crates.io installs use the same
-// implementation as local builds. Its additional library APIs are unused here.
-#[allow(dead_code)]
-#[path = "../vendor/renamore/src/lib.rs"]
-mod renamore;
-
 #[derive(Debug, Parser)]
 #[command(
     name = "ren",
@@ -644,7 +638,7 @@ fn is_leaf_name(name: &Path) -> bool {
 }
 
 fn rename_without_overwrite(source: &Path, target: &Path) -> Result<(), String> {
-    renamore::rename_exclusive(source, target).map_err(|err| {
+    renamest::rename_exclusive(source, target).map_err(|err| {
         if err.kind() == ErrorKind::AlreadyExists {
             format!(
                 "refusing to rename: target '{}' already exists",

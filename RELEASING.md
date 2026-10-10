@@ -129,17 +129,16 @@ application bug. Publish a new version. If a full rebuild differs from an
 existing asset, resume with the original run's artifacts; pinned tools and
 normalized archive metadata do not make hosted runner images immutable.
 
-## Vendored rename implementation
+## Rename implementation
 
 The published package is named `renrs`; its commands remain `ren`, `renx`, and
 `unren`. The existing crate named `ren` belongs to another project.
 
-The renamore fork is compiled as an internal module from `vendor/renamore/src/`.
-This includes the same implementation in checkout builds, binary downloads, and
-crates.io installs. Its original manifest is retained as `Cargo.toml.upstream`,
-so Cargo does not exclude the vendored source as a nested package. Do not replace
-this with a path-plus-version dependency: publishing would use the registry's
-renamore implementation instead of this fork.
+Renaming uses the crates.io [`renamest`](https://crates.io/crates/renamest)
+dependency. `Cargo.lock` records the version used by checkout builds, binary
+downloads, and locked crates.io installs. Release archives include its MIT and
+Apache-2.0 license notices from `licenses/`; refresh those copies when upgrading
+the dependency if its notices change.
 
 Linux and Android use `renameat2(RENAME_NOREPLACE)`, macOS uses
 `renamex_np(RENAME_EXCL)`, and Windows uses `MoveFileExW` without replacement.
