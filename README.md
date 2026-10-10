@@ -19,8 +19,8 @@ cargo install --path . --locked
 After the first release, install all three commands with
 `cargo install renrs --locked`, or download a
 [release archive](https://github.com/mevanlc/renrs/releases).
-Archives cover Linux, macOS, and Windows (x64/ARM64), plus Android ARM64. Put the
-three executables on your PATH.
+Archives cover Linux, macOS, Windows, and FreeBSD (x64/ARM64), plus Android ARM64.
+FreeBSD requires 15.1 or newer. Put the three executables on your PATH.
 
 ## Usage
 
@@ -66,7 +66,7 @@ uv run scripts/test_release.py
 actionlint
 ```
 
-PRs and pushes to `main` build all seven targets and verify the crate package.
+PRs and pushes to `main` build all nine targets and verify the crate package.
 Tags such as `v0.1.0` supply release versions; checkout versions stay at `0.0.0`.
 See the [release guide](https://github.com/mevanlc/renrs/blob/main/RELEASING.md) for
 first-publication setup, trusted publishing, download verification, and recovery.

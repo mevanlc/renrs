@@ -100,7 +100,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.kind == 'freebsd' && 60 || 30 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -111,6 +111,7 @@ jobs:
       - name: Install Python
         run: uv python install "$UV_PYTHON"
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+        if: matrix.kind != 'freebsd'
         with:
           toolchain: ${{ needs.prepare.outputs.toolchain }}
           targets: ${{ matrix.target }}
@@ -139,10 +140,11 @@ jobs:
             echo "AR_aarch64_linux_android=$NDK_BIN/llvm-ar"
           } >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        if: matrix.kind != 'freebsd'
         with:
           key: ${{ matrix.target }}
       - uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2
-        if: matrix.kind != 'android'
+        if: matrix.kind != 'android' && matrix.kind != 'freebsd'
         with:
           tool: cargo-nextest@0.9.132
       - name: Stamp version
@@ -150,11 +152,12 @@ jobs:
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: uv run scripts/release.py stamp "$RELEASE_VERSION"
       - name: Test on the target architecture
-        if: matrix.kind != 'android'
+        if: matrix.kind != 'android' && matrix.kind != 'freebsd'
         env:
           TARGET: ${{ matrix.target }}
         run: cargo nextest run --locked --all-targets --all-features --target "$TARGET"
       - name: Build release binaries
+        if: matrix.kind != 'freebsd'
         env:
           TARGET: ${{ matrix.target }}
         run: cargo build --bins --release --locked --target "$TARGET"
@@ -189,15 +192,56 @@ jobs:
               exit 1
             fi
           done
+      - name: Build and test FreeBSD ${{ matrix.release }} ${{ matrix.arch }} in a VM
+        if: matrix.kind == 'freebsd'
+        uses: vmactions/freebsd-vm@f0552d3b69211736abd97f02ff3d4674c56b73b1 # v1.5.5
+        with:
+          release: ${{ matrix.release }}
+          arch: ${{ matrix.arch }}
+          sync: rsync
+          copyback: true
+          prepare: |
+            set -eu
+            if [ '${{ matrix.arch }}' = x86_64 ]; then
+              fetch -o /tmp/rustup-init 'https://static.rust-lang.org/rustup/dist/${{ matrix.target }}/rustup-init'
+              chmod +x /tmp/rustup-init
+              /tmp/rustup-init -y --profile minimal --default-toolchain '${{ needs.prepare.outputs.toolchain }}' --component clippy --no-modify-path
+              fetch -o /tmp/nextest.tar.gz https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.132/cargo-nextest-0.9.132-x86_64-unknown-freebsd.tar.gz
+              test "$(sha256 -q /tmp/nextest.tar.gz)" = 64c776fe02a2de1f4eadc0bfc3817568f77521acd4de3c270699629d828d5daa
+              tar -xzf /tmp/nextest.tar.gz -C "$HOME/.cargo/bin" cargo-nextest
+            else
+              # Rustup does not publish a FreeBSD ARM64 installer.
+              archive='rust-${{ needs.prepare.outputs.toolchain }}-${{ matrix.target }}'
+              fetch -o /tmp/rust.tar.xz "https://static.rust-lang.org/dist/$archive.tar.xz"
+              fetch -o /tmp/rust.sha256 "https://static.rust-lang.org/dist/$archive.tar.xz.sha256"
+              test "$(sha256 -q /tmp/rust.tar.xz)" = "$(awk '{print $1}' /tmp/rust.sha256)"
+              tar -xJf /tmp/rust.tar.xz -C /tmp
+              sh "/tmp/$archive/install.sh" --prefix="$HOME/.cargo" --components=rustc,cargo,rust-std-aarch64-unknown-freebsd,clippy-preview --disable-ldconfig
+            fi
+          run: |
+            set -eu
+            export PATH="$HOME/.cargo/bin:$PATH"
+            cargo clippy --locked --all-targets --all-features --target '${{ matrix.target }}' -- -D warnings
+            if [ '${{ matrix.arch }}' = x86_64 ]; then
+              cargo nextest run --locked --all-targets --all-features --target '${{ matrix.target }}'
+            else
+              # Nextest does not publish a FreeBSD ARM64 binary.
+              cargo test --locked --all-targets --all-features --target '${{ matrix.target }}'
+            fi
+            cargo build --bins --release --locked --target '${{ matrix.target }}'
       - name: Package binaries
         env:
           TARGET: ${{ matrix.target }}
         run: uv run scripts/release.py archive "$TARGET"
       - name: Smoke-test the extracted download
-        if: matrix.kind != 'android'
+        if: matrix.kind != 'android' && matrix.kind != 'freebsd'
         env:
           TARGET: ${{ matrix.target }}
         run: uv run scripts/release.py smoke "$TARGET"
+      - name: Smoke-test the extracted FreeBSD download in the VM
+        if: matrix.kind == 'freebsd'
+        shell: freebsd {0}
+        run: sh scripts/smoke-freebsd.sh '${{ matrix.target }}' '${{ needs.prepare.outputs.version }}'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: build-${{ matrix.target }}

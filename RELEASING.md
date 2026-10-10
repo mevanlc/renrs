@@ -1,7 +1,7 @@
 # Releases
 
 This repository releases one Rust package containing three CLI binaries: `ren`,
-`renx`, and `unren`. It publishes seven binary archives and one crate from the
+`renx`, and `unren`. It publishes nine binary archives and one crate from the
 same commit, following the [tuisv release setup](https://github.com/mevanlc/tuisv/blob/main/RELEASING.md).
 The Git tag supplies the version; committed package versions stay at `0.0.0`.
 
@@ -75,8 +75,14 @@ Use a disposable checkout for stamping tests:
 the package's lockfile entry. It verifies that no dependency versions change.
 The helper assumes it is run from the repository root.
 
-The six desktop/server targets execute nextest and smoke-test the extracted
-download with `--help` and `--version`. Linux binaries are checked for static
+The eight desktop/server targets execute tests and smoke-test the extracted
+download with `--help` and `--version`. FreeBSD x64 and ARM64 build and test
+inside FreeBSD 15.1 VMs; the extracted downloads also exercise all three rename
+commands and verify that existing destinations keep their contents. FreeBSD
+x64 uses nextest; ARM64 uses `cargo test` because nextest does not publish a
+FreeBSD ARM64 binary. ARM64 installs the pinned Rust toolchain from its official
+standalone archive because rustup does not publish an installer for that target.
+FreeBSD downloads require 15.1 or newer. Linux binaries are checked for static
 linking. Android uses NDK 27.3.13750724 with API 24 and is checked for the correct
 ELF architecture, interpreter, and system-library dependencies. Android execution
 is not covered by hosted CI. macOS uses deployment target 11.0.
@@ -141,7 +147,8 @@ Apache-2.0 license notices from `licenses/`; refresh those copies when upgrading
 the dependency if its notices change.
 
 Linux and Android use `renameat2(RENAME_NOREPLACE)`, macOS uses
-`renamex_np(RENAME_EXCL)`, and Windows uses `MoveFileExW` without replacement.
+`renamex_np(RENAME_EXCL)`, FreeBSD uses `renameat2(AT_RENAME_NOREPLACE)`, and
+Windows uses `MoveFileExW` without replacement.
 If the operating system/filesystem cannot provide the exclusive operation, the
 command fails; it does not fall back to a non-atomic overwrite check.
 

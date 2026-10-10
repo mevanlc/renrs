@@ -110,7 +110,12 @@ class ProjectTest(unittest.TestCase):
 
     def test_archives_are_deterministic_and_complete(self):
         release.stamp("0.1.0")
-        for target in ("x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"):
+        for target in (
+            "x86_64-unknown-linux-musl",
+            "x86_64-pc-windows-msvc",
+            "x86_64-unknown-freebsd",
+            "aarch64-unknown-freebsd",
+        ):
             with self.subTest(target=target):
                 executable = "widget.exe" if "windows" in target else "widget"
                 binary = Path("target", target, "release", executable)
@@ -151,7 +156,12 @@ class ProjectTest(unittest.TestCase):
     def test_archives_include_every_executable_and_license(self):
         with Path("Cargo.toml").open("a") as manifest:
             manifest.write('\n[[bin]]\nname = "first"\n[[bin]]\nname = "second"\n')
-        for target in ("x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"):
+        for target in (
+            "x86_64-unknown-linux-musl",
+            "x86_64-pc-windows-msvc",
+            "x86_64-unknown-freebsd",
+            "aarch64-unknown-freebsd",
+        ):
             with self.subTest(target=target):
                 suffix = ".exe" if "windows" in target else ""
                 build = Path("target", target, "release")
