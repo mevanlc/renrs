@@ -70,7 +70,7 @@ struct RenxOperationArgs {
     #[arg(long, value_name = "str")]
     prepend: Option<OsString>,
 
-    /// Replace PATH's extension, preserving the prefix through its last dot.
+    /// Set PATH's extension, appending .STR if the basename has no dot.
     #[arg(long, value_name = "str")]
     ext: Option<OsString>,
 
@@ -573,13 +573,11 @@ fn ext_rename_target(source: &Path, extension: &OsStr) -> Result<PathBuf, String
     let file_name = ensure_source_has_file_name(source)?;
     ensure_leaf_name(source, extension, "new extension")?;
 
-    let prefix = prefix_through_last_dot(file_name).ok_or_else(|| {
-        format!(
-            "refusing to rename '{}': file name has no '.'",
-            source.display()
-        )
-    })?;
-    let mut target_name = prefix;
+    let mut target_name = prefix_through_last_dot(file_name).unwrap_or_else(|| {
+        let mut prefix = file_name.to_os_string();
+        prefix.push(".");
+        prefix
+    });
     target_name.push(extension);
 
     let parent = source.parent().unwrap_or_else(|| Path::new(""));
@@ -1020,15 +1018,16 @@ mod tests {
     }
 
     #[test]
-    fn ext_refuses_file_name_without_dot() {
+    fn ext_adds_extension_to_file_name_without_dot() {
         let tempdir = tempfile::tempdir().unwrap();
-        let old = tempdir.path().join("old");
+        let old = tempdir.path().join("index");
+        let new = tempdir.path().join("index.html");
         fs::write(&old, "contents").unwrap();
 
-        let err = run_renx(renx_args(&old, &["--ext", "txt"])).unwrap_err();
+        run_renx(renx_args(&old, &["--ext", "html"])).unwrap();
 
-        assert!(err.contains("file name has no '.'"));
-        assert!(old.exists());
+        assert!(!old.exists());
+        assert_eq!(fs::read_to_string(new).unwrap(), "contents");
     }
 
     #[test]
