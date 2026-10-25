@@ -60,6 +60,16 @@ renx --sr-regex=ig -s 'old' -r 'new' reports/old.txt
 renx --sr-fixed=2-3 -s 'old' -r 'new' reports/old-old-old.txt
 ```
 
+On Unix, `ren . new-name` renames the current directory within its parent.
+Only the literal `.` argument has this behavior; it is not supported by `renx`,
+`unren`, or on Windows. Filesystem roots are rejected, and other filesystem
+restrictions (such as mount-point rename restrictions) are enforced by the OS.
+The command refuses paths containing symlinks, including in the shell's `PWD`,
+and refuses an invalid, stale, or unverifiable `PWD`. If `PWD` is unset, only the
+physical working-directory path can be checked; prior symlink traversal cannot
+be detected. After a successful rename, the shell's `PWD` and prompt may still
+show the old name; `cd "$(pwd -P)"` refreshes the shell's path.
+
 `--append` and `--prepend` operate on the complete basename. `--stem` preserves
 its suffix from the last dot and requires a dot; `--ext` replaces the extension,
 or appends one when there is no dot. `--name` replaces the complete basename.

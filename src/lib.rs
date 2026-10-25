@@ -18,7 +18,7 @@ pub struct RenameArgs {
     #[command(flatten)]
     filters: TypeFilterArgs,
 
-    /// Filesystem entry to rename.
+    /// Filesystem entry to rename (literal . renames the current directory on Unix).
     path: PathBuf,
 
     /// New leaf name for PATH.
@@ -396,9 +396,77 @@ impl FileTypes {
 }
 
 pub fn run(args: RenameArgs) -> Result<(), String> {
-    rename_entry(args.path, args.filters.filetype, |source| {
+    // Path equality normalizes spellings such as "./"; only literal "." opts in.
+    let source = if args.path.as_os_str() == OsStr::new(".") {
+        current_directory_source()?
+    } else {
+        args.path
+    };
+    rename_entry(source, args.filters.filetype, |source| {
         rename_target(source, &args.name).map(RenameTarget::Changed)
     })
+}
+
+#[cfg(windows)]
+fn current_directory_source() -> Result<PathBuf, String> {
+    Err("renaming the current directory with '.' is not supported on Windows".to_owned())
+}
+
+#[cfg(any(unix, target_os = "redox"))]
+fn current_directory_source() -> Result<PathBuf, String> {
+    use std::os::unix::fs::MetadataExt;
+
+    let source = std::env::current_dir()
+        .map_err(|err| format!("cannot resolve current directory: {err}"))?;
+    if source.parent().is_none() {
+        return Err("refusing to rename '.': current directory is a filesystem root".to_owned());
+    }
+    ensure_no_symlink_components(&source)?;
+
+    // getcwd loses the logical path used to enter the directory. PWD is only
+    // evidence for refusal, never the source of the rename.
+    if let Some(pwd) = std::env::var_os("PWD") {
+        let pwd = Path::new(&pwd);
+        if !pwd.is_absolute()
+            || pwd
+                .components()
+                .any(|component| matches!(component, Component::CurDir | Component::ParentDir))
+        {
+            return Err(
+                "refusing to rename '.': PWD is not an absolute normalized path".to_owned(),
+            );
+        }
+        ensure_no_symlink_components(pwd)?;
+        let logical = fs::metadata(pwd)
+            .map_err(|err| format!("cannot verify PWD '{}': {err}", pwd.display()))?;
+        let physical = fs::metadata(&source)
+            .map_err(|err| format!("cannot read '{}': {err}", source.display()))?;
+        if (logical.dev(), logical.ino()) != (physical.dev(), physical.ino()) {
+            return Err(
+                "refusing to rename '.': PWD does not identify the current directory".to_owned(),
+            );
+        }
+    }
+    Ok(source)
+}
+
+#[cfg(any(unix, target_os = "redox"))]
+fn ensure_no_symlink_components(path: &Path) -> Result<(), String> {
+    for component in path.ancestors() {
+        let metadata = fs::symlink_metadata(component).map_err(|err| {
+            format!(
+                "cannot verify directory path '{}': {err}",
+                component.display()
+            )
+        })?;
+        if metadata.file_type().is_symlink() {
+            return Err(format!(
+                "refusing to rename '.': directory path contains symlink '{}'",
+                component.display()
+            ));
+        }
+    }
+    Ok(())
 }
 
 pub fn run_unren(args: UnrenArgs) -> Result<(), String> {
